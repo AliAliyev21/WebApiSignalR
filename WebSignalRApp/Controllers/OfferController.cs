@@ -1,7 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using WebSignalRApp.Helpers;
-
-// For more information on enabling Web API for empty projects, visit https://go.microsoft.com/fwlink/?LinkID=397860
+using System.Timers; 
 
 namespace WebSignalRApp.Controllers
 {
@@ -9,18 +8,52 @@ namespace WebSignalRApp.Controllers
     [ApiController]
     public class OfferController : ControllerBase
     {
-        // GET: api/<OfferController>
-        [HttpGet]
-        public double Get()
+        private static double currentBid = 0;
+        private static string lastBidder = string.Empty;
+        private static System.Timers.Timer bidTimer; 
+        private static readonly object _lock = new();
+        private static bool timerActive = false;
+
+        static OfferController()
         {
-            return FileHelper.Read();
+            bidTimer = new System.Timers.Timer(30000); 
+            bidTimer.AutoReset = false;
+            bidTimer.Elapsed += OnBidTimerElapsed;
+        }
+
+        [HttpGet]
+        public IActionResult Get()
+        {
+            return Ok(new { CurrentBid = currentBid });
         }
 
         [HttpGet("Increase")]
-        public void Increase(double data)
+        public IActionResult Increase(double data, string user)
         {
-            var result = FileHelper.Read() + data;
-            FileHelper.Write(result);
+            lock (_lock)
+            {
+                if (data <= currentBid && timerActive)
+                {
+                    return BadRequest("Bid must be higher than the current bid.");
+                }
+
+                currentBid = data;
+                lastBidder = user;
+                timerActive = true;
+                bidTimer.Stop();
+                bidTimer.Start();
+                FileHelper.Write(currentBid);
+            }
+
+            return Ok(new { CurrentBid = currentBid });
+        }
+
+        private static void OnBidTimerElapsed(object sender, ElapsedEventArgs e)
+        {
+            lock (_lock)
+            {
+                timerActive = false;
+            }
         }
     }
 }

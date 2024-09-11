@@ -3,7 +3,7 @@ using WebSignalRApp.Helpers;
 
 namespace WebSignalRApp.Hubs
 {
-    public class MessageHub:Hub
+    public class MessageHub : Hub
     {
         public override async Task OnConnectedAsync()
         {
@@ -18,6 +18,11 @@ namespace WebSignalRApp.Hubs
         public async Task SendMessage(string message)
         {
             await Clients.All.SendAsync("ReceiveMessage", message + "'s Offer : ", FileHelper.Read());
+        }
+
+        public async Task UpdateBid(double data, string user)
+        {
+            await Clients.All.SendAsync("ReceiveBidUpdate", FileHelper.Read(), user);
         }
     }
 }
